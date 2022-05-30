@@ -1,0 +1,23 @@
+Functionality:
+• View timetable for single module in Apple Calendar style
+• View timetable for multiple/all modules in Apple Calendar style
+• Add timetable events to Google/Apple/
+
+
+
+
+Webapp pages:
+
+• Login page
+    • Mini-welcome
+    • Explanation of how the login process works, just to reassure users
+      that their data isn't being stolen
+    • 
+
+• Home/welcome page
+    • Explanation for why I decided to make this project
+    • Menu bar 
+
+• View 
+
+• Download 
