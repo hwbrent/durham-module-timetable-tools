@@ -1,0 +1,2 @@
+• Amend the object returned by Scraper.get_module_timetable()
+    • Specifically, the "Weeks" field - convert the week numbers to actual dates

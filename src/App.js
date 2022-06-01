@@ -1,13 +1,12 @@
 import logo from './logo.svg';
 import './App.css';
 
-import LoginPage from './components/pages/LoginPage';
-import HomePage from './components/pages/HomePage';
+import LoginPage from './components/loginPage/LoginPage';
+import HomePage from './components/homePage/HomePage';
 
 function App() {
   return (
     <>
-      {/* <LoginPage/> */}
       <HomePage/>
     </>
   );

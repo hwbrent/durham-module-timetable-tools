@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import handleFetch from '../functions/handleFetch';
+
+const {
+    REACT_APP_HOMEPAGE,
+    REACT_APP_SERVER_URL
+} = process.env;
 
 /**
  * Renders a <datalist> and accompanying 
@@ -10,24 +14,26 @@ import handleFetch from '../functions/handleFetch';
     // `modules` is the list of full module names
     const [ modules, setModules ] = useState([]);
 
-    // in the first render, fetches the full names of the modules (not just the codes, e.g. "ACCT0001 - Accounting Placement Bootcamp (L1)")
-    useEffect(() => {
-        async function effect() {
-            const response = await handleFetch("/get/modulenames", "application/json");
-            try {
-                const data = await JSON.parse(response);
-                setModules(data);
-            } catch {
-                alert(response);
+    useEffect(
+        () => {
+            // fetches the full names of the modules (e.g. "ACCT0001 - Accounting Placement Bootcamp (L1)")
+            async function effect() {
+                try {
+                    const response = await fetch(`${REACT_APP_SERVER_URL}/get-module-names`,{
+                        method: "GET",
+                        headers: {"Content-Type": "application/json"}
+                    });
+                    const data = await response.json();
+                    setModules(data);
+                } catch (error) {
+                    alert(error);
+                }
             }
-        }
-        effect();
-    }, []);
+            effect();
+        },
+        [] // only executes in first render
+    );
 
-    /**
-     * This `<form>` is used by the user to select their modules.
-     * The `<option>`s in the `<datalist>` are created by mapping each string in `modules` to an `<option>` tag
-     */
     const form = (
         <form onSubmit={(event) => props.handleFormSubmit(event, modules)}>
             <label>

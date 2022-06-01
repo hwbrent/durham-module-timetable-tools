@@ -1,36 +1,33 @@
 import React from 'react';
 
-const envVariables = process.env;
 const {
     REACT_APP_HOMEPAGE,
     REACT_APP_SERVER_URL
-} = envVariables;
+} = process.env;
 
-export default function LoginPage() {
+function LoginPage() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // retrive the values from the below <input> tags
-        const [ cisUsernameInputEl, passwordInputEl ] = event.target.getElementsByTagName("input");
-        const cisUsername = cisUsernameInputEl.value;
-        const password = passwordInputEl.value;
+        const cisUsername = event.target.getElementsByTagName("input")[0].value;
+        const password = event.target.getElementsByTagName("input")[1].value;
 
         // reset the values of the <input> fields
-        // event.target.getElementsByTagName("input")[0].value = "";
-        // event.target.getElementsByTagName("input")[1].value = "";
+        event.target.getElementsByTagName("input")[0].value = "";
+        event.target.getElementsByTagName("input")[1].value = "";
 
-        // const url = `${process.env.REACT_APP_SERVER_URL}/validate/${cisUsername}/${password}`;
         const url = `${REACT_APP_SERVER_URL}/validate/${cisUsername}/${password}`;
         const response = await fetch(url, {
             method: "GET",
-            headers: {"Content-Type": "application/json"}
+            headers: {
+                "Content-Type": "application/json"
+            }
         });
 
-        // either `true` or `false`
+        // `true` or `false`
         const userIsValid = await response.json();
 
-        console.log("userIsValid:", userIsValid);
         alert(userIsValid);
     }
 
@@ -59,3 +56,5 @@ export default function LoginPage() {
         </>
     );
 }
+
+export default LoginPage;

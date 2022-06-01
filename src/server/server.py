@@ -36,7 +36,6 @@ def server():
         os.environ.get("APP_SCRAPER_PASSWORD"),
     )
 
-
     # ------------------------------
 
     @app.route("/")
@@ -52,8 +51,8 @@ def server():
 
     # ------------------------------
 
-    @app.route("/get/modulenames")
-    def get_modulenames() -> list:
+    @app.route("/get-module-names")
+    def get_module_names() -> list:
 
         all_params = scraper.get_module_timetable_url_parameters()
         module_names = [sublist[0] for sublist in all_params["Select Module(s) to View:"]]
@@ -63,24 +62,23 @@ def server():
 
     # ------------------------------
 
-    @app.route("/getmoduletimetables", methods=["POST"])
-    def getmoduletimetables() -> list:
+    @app.route("/get-module-timetables", methods=["POST"])
+    def get_module_timetables() -> list:
 
+        # list of module codes
         body_data = flask.request.get_json()
-        # print()
-        # print("body_data:", body_data)
-        # print()
+
+        timetables = scraper.get_module_timetable(body_data)
         
-        data = body_data
+        data = timetables
         return flask.jsonify(data)
 
     # ------------------------------
 
     @app.route("/test")
     def test():
-        var = os.environ.get("PASSWORD")
-        json_ed = json.loads(var)
-        return flask.jsonify(json_ed)
+        var = os.environ.get("APP_SCRAPER_PASSWORD")
+        return flask.jsonify(var)
 
     # ------------------------------
     

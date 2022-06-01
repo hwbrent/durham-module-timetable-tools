@@ -1,10 +1,16 @@
 
 # from numpy import array
-
 # from calendar import week
+from regex import R # what? 
+import datetime
+import json
+import sys
+import requests
+# from difflib import SequenceMatcher
+from bs4 import BeautifulSoup, Comment
+from pprint import PrettyPrinter
 
-from regex import R
-
+pp = PrettyPrinter(indent=4)
 
 class Scraper:
     ''' Implements methods that allow for the web-scraping of data from various Durham University websites. '''
@@ -82,12 +88,6 @@ class Scraper:
         Therefore I wrote some JavaScript code in `../js-console-scripts/getWeekPatterns.js` which pulls the data.
         At some point I will investigate how to scrape this with JavaScript.
         '''
-        import datetime
-        import json
-        from pprint import PrettyPrinter
-        pp = PrettyPrinter(indent=4)
-
-        # ---------
 
         with open("./json-files/weekPatternsArray.json") as f:
             week_patterns = json.load(f)
@@ -177,37 +177,35 @@ class Scraper:
     # ----------
 
     @staticmethod
-    def convert_week_number_to_datetime_date_span(week_number:'str|int') -> list:
+    def get_datetime_date_from_week_number_and_dotw(week_number:str, day_of_the_week:str) -> 'datetime.date':
         '''
-        Given a `week_number` (a `str` or an `int`), returns a `list` of length two.
-        
-        The first value is the `datetime.date` instance of the Monday of that week,
-        and the second value is the `datetime.date` instance of the Friday of that week.
+        Given a `week_number` and `day_of_the_week`, returns a `datetime.date` object.
 
         ---
 
         ### Parameters:
-        - `week_number` (required) --> a `str` or `int` representing the week number within the Durham calendar.
-            - This isn't necessarily the term weeks; the weeks are numbered as found on https://timetable.dur.ac.uk/week_patterns.htm.
-            - e.g. a `week_number` of value `"1"` doesn't correspond to the first week of the first term. It will be a week at some time in June/July
+        - `week_number` (required) --> a valid week number (a number somewhere in the range 1-52, in string form).
+        - `day_of_the_week` (required) --> one of `['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']`
 
         ---
 
-        ### Example return value:
-        ```python
-        [
-            datetime.date(2021, 10, 11),
-            datetime.date(2021, 10, 15)
-        ]
-        ```
-        '''
-        from pprint import PrettyPrinter
-        
-        week_patterns = Scraper.get_week_patterns("object")
-        week_dict = week_patterns[str(week_number)]
-        week_span = week_dict["Calendar Date"]
+        ### Notes
+        - `Scraper.get_week_patterns()[<<week_number>>]["Calendar Date"][0]` gets you the `datetime.date` of the Monday of `week_number`.
+        - `day_of_the_week` dictates how many days you need to add onto the Monday date to get the specific day of the week.
+        - e.g. If `day_of_the_week` is `"Wednesday"`, you add a `datetime.timedelta(days=2)` to the Monday date to get the Wednesday date.
 
-        return week_span
+        '''
+
+        DAYS_OF_THE_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+        week_patterns = Scraper.get_week_patterns()
+
+        week_monday_date = week_patterns[week_number]["Calendar Date"][0]
+        number_of_added_days = DAYS_OF_THE_WEEK.index(day_of_the_week)
+
+        new_date = week_monday_date + datetime.timedelta(days = number_of_added_days)
+        
+        return new_date
 
     # ----------
 
@@ -220,8 +218,6 @@ class Scraper:
         ### Parameters:
         - `base_url` (required) --> the `str` url from which to request data.
         '''
-        import sys
-        import requests
 
         # adding the username and password into base_url.
         # this won't circumnavigate 2FA but does permit access to certain uni sites that only require your CIS username and password
@@ -254,7 +250,6 @@ class Scraper:
         Does this by making a request to a server endpoint requiring authentication, using the user's CIS email and password.
         If the request is successful, the person is a valid user, so returns `True`. Else, returns `False`.
         '''
-        import requests
 
         BASE_URL = "https://www.dur.ac.uk/directory/password/"
 
@@ -290,7 +285,6 @@ class Scraper:
             - the second contains the `<select>` tag which contains the `<option>`s which are the parameters I'm looking for
         - So I must extract the data from the `<option>` tags
         '''
-        from bs4 import BeautifulSoup
 
         response_text = self.handle_request(base_url = self.BASE_URLS[2])
         soup = BeautifulSoup(response_text, "html.parser")
@@ -374,9 +368,6 @@ class Scraper:
 
         example url = https://timetable.dur.ac.uk/reporting/Master;module;name;COMP2261%0D%0ACOMP2271%0D%0ACOMP2281%0D%0ACOMP3012%0D%0A?days=1-5&weeks=12-21&periods=5-41&template=module+Master&height=100&week=100
         '''
-        from bs4 import BeautifulSoup, Comment
-        from pprint import PrettyPrinter
-        pp = PrettyPrinter(indent=4)
 
         WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -406,7 +397,6 @@ class Scraper:
         ])
         response_text = self.handle_request(url)
         soup = BeautifulSoup(response_text, "html.parser")
-        # print(soup.prettify())
 
         # the formatting is weird - loads of <table>'s are used.
 
@@ -414,11 +404,6 @@ class Scraper:
         # then there's a <span> saying which day is it
         # then there's (possibly) a <table> containing the activity information
         #   - the attributes are ["Activity", "Description", "Module", "Start", "End", "Duration", "Room", "Staff", "Weeks", "Planned Size"]
-
-        # tables = soup.find_all("table")
-        # for table in tables:
-        #     print(table.prettify())
-
 
         # basically, there are gazillions of <tables>, so the easiest way to find them is to search based on the activity <table> attributes.
         # these are ["Activity", "Description", "Module", "Start", "End", "Duration", "Room", "Staff", "Weeks", "Planned Size"].
@@ -496,9 +481,34 @@ class Scraper:
                 staff = handle_empty(staff_raw)
                 # staff_list = staff_raw.split(",")
 
-                # split it into a 2d list of start and end values, e.g. 13-21, 26-35, 41-42
-                weeks_raw = td_values[ATTRIBUTES.index("Weeks")]
-                # weeks = [pair.split("-") for pair in weeks_raw.split(", ")]
+                # ---------------------------------------------------------------- #
+                # --- Calculating every day on which this activity takes place --- #
+                # ---------------------------------------------------------------- #
+
+                # e.g. "13-21, 26-35, 41-42"
+                weeks_raw = td_values[ATTRIBUTES.index("Weeks")] # str
+
+                # will be filled with yyyy-mm-dd strings denoting dates on which the activity will take place
+                all_activity_dates = []
+
+                for value in weeks_raw.split(", "):
+
+                    # `value`` will either be a single number-like string (e.g. "42") representing a week number,
+                    # or it'll be something like "12-13" (i.e. the span of weeks in which it takes place).
+
+                    if "-" in value: # if it's a span
+                        lower, upper = value.split("-")
+
+                        # e.g. if value is "41-44", this'd be ["41", "42", "43", "44"]
+                        all_week_numbers = [str(num) for num in range(int(lower), int(upper)+1)]
+
+                        for week in all_week_numbers:
+                            week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(week, day_of_the_week)
+                            all_activity_dates.append(week_activity_date.isoformat())
+                
+                    else: # it's a singular week
+                        week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(value, day_of_the_week)
+                        all_activity_dates.append(week_activity_date.isoformat())
 
                 # !! "Planned Size" is sometimes empty !!
                 # numeric string denoting the capacity of the room e.g. "50"
@@ -519,7 +529,8 @@ class Scraper:
                     "Duration":        duration,
                     "Room":            room,
                     "Staff":           staff,
-                    "Weeks":           weeks_raw, # weeks
+                    # "Weeks":           weeks_raw, # weeks
+                    "Dates":           all_activity_dates,
                     "Planned Size":    planned_size
                 }
 
@@ -589,10 +600,6 @@ class Scraper:
         }
         ```
         '''
-        import json
-        from bs4 import BeautifulSoup
-        from pprint import PrettyPrinter
-        pp = PrettyPrinter(indent=4)
 
         URL = "https://www.dur.ac.uk/cis/local/facilities/location/?location_id=1"
 
@@ -689,10 +696,6 @@ class Scraper:
         }
         ```
         '''
-        from difflib import SequenceMatcher
-        from bs4 import BeautifulSoup
-        from pprint import PrettyPrinter
-        pp = PrettyPrinter(indent=4)
 
         URL = "https://www.dur.ac.uk/cis/local/facilities/location/?location_id=1"
 
@@ -770,9 +773,6 @@ class Scraper:
 
     def get_building_codes_and_location_urls(self, code_param:str = None) -> dict[str,str]:
 
-        from pprint import PrettyPrinter
-        pp = PrettyPrinter(indent=4)
-
         codes = self.get_building_codes()
         urls = self.get_building_locations_urls()
 
@@ -788,3 +788,6 @@ class Scraper:
         
         else:
             return codes_and_urls
+
+# Scraper.get_week_patterns(_print=True)
+# Scraper.get_datetime_date_from_week_number_and_dotw("9", "Tuesday")
