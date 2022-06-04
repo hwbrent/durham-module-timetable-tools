@@ -3,14 +3,18 @@ import json
 import sys
 import os
 import requests
-import pprint
+import selenium
+
 from pprint import PrettyPrinter
+from bs4 import BeautifulSoup, Comment
+# from sympy import O
+
 from env import load_environment_variables
 
-from bs4 import BeautifulSoup, Comment
-from selenium import webdriver
-
 pp = PrettyPrinter(indent=4)
+
+CHROMEDRIVER_PATH = "./chromedriver"
+ENV_PATH = "../../.env"
 
 class Scraper:
     ''' Implements methods that allow for the web-scraping of data from various Durham University websites. '''
@@ -69,8 +73,97 @@ class Scraper:
 
     # ----------
 
-    @staticmethod
-    def get_week_patterns(list_or_dict:str = "dict", _print:bool = False) -> 'list|dict':
+    def scrape_raw_week_pattern_data(self) -> list[list[str]]:
+        '''
+        Helper function for `self.get_week_patterns`. Returns a 2D list.
+
+        ---
+
+        ### Notes:
+
+        This method uses Selenium in order to emulate a browser in order to scrape the week patterns page.
+        This solves the problem that I was having before; BeautifulSoup was scraping the page SOURCE which contained a <script> tag which dynamically (?) generates the <tr>s.
+        As such, they weren't present in the table source, so BeautifulSoup couldn't actually extract the week patterns data.
+        Using Selenium avoids this issue.
+        
+        ---
+
+        ### Useful references:
+
+        - ChromeDriver - https://chromedriver.chromium.org/getting-started (includes example code)
+        - Selenium Python bindings - https://selenium-python.readthedocs.io/getting-started.html
+        - Helpful StackOverflow answer on how to open the browser window "silently" - https://stackoverflow.com/a/48775203
+        '''
+
+        # a class containing class variable constants used in the `find_element` method
+        from selenium.webdriver.common.by import By
+
+        # ----------
+
+        # not really sure what this Service thingy does, but apparently it's necessary.
+        # `selenium.webdriver.Chrome()`` allows you to pass the path to the `chromedriver` file, but this is deprecated.
+        # using this `service` thing circumvents this.
+        service = selenium.webdriver.chrome.service.Service(CHROMEDRIVER_PATH)
+        service.start()
+
+        # telling the driver to not open an actual Chrome window
+        options = selenium.webdriver.chrome.options.Options()
+        options.add_argument("headless")
+
+        # this is like the equivalent of the BeautifulSoup class (as far as I have understood)
+        driver = selenium.webdriver.Chrome(service=service, options=options)
+
+        url = Scraper.add_auth_to_url("https://timetable.dur.ac.uk/week_patterns.htm", self.username, self.password)
+        driver.get(url)
+
+        table = driver.find_element(by=By.TAG_NAME,value="table")
+
+        trs = table.find_elements(by=By.TAG_NAME, value="tr")
+
+        # the first two <tr>'s are the headers of the table.
+        # they look like this:
+        #   +–––––––––––––––––––––––––––––+––––––––––––––––––––––+
+        #   |       Syllabus Weeks        |   Durham Weeks       |
+        #   +–––––––––––––+–––––––––––––––+––––––+–––––––––––––––+
+        #   | Week Number | Calendar Date | Term | Teaching Week |
+        #   +–––––––––––––+–––––––––––––––+––––––+–––––––––––––––+
+
+        data = list()
+
+        for tr in trs[2:]: # skipping the two rows in the mini-diagram above
+
+            # the <td> elements in the current <tr>
+            # each element in the list is of type `<selenium.webdriver.remote.webelement.WebElement`
+            tds = tr.find_elements(by=By.TAG_NAME, value="td")
+
+            row = [web_element.text.strip() for web_element in tds]
+            
+            data.append(row)
+        
+        # ----------------------------------------------------------------- #
+        # --- Find academic year and add it to the table contents list. --- #
+        # ----------------------------------------------------------------- #
+
+        # (this info isn't actually in the <table> element in the webpage, but it's necessary to work out the year for each date in the table)
+
+        # the textContent of the element that contains the academic year.
+        # the raw value will be something like "2022-23 Teaching Timetable"
+        academic_year_raw = driver.find_element(by=By.CLASS_NAME, value="l2sitename").text.strip()
+        
+        academic_year_lower = academic_year_raw.split()[0].split("-")[0]
+        academic_year_upper = academic_year_lower[:2] + academic_year_raw.split()[0].split("-")[1]
+
+        data.append([academic_year_lower, academic_year_upper])
+
+        # -----
+
+        driver.quit()
+
+        return data
+
+    # ----------
+
+    def get_week_patterns(self, list_or_dict:str = "dict", _print:bool = False) -> 'list|dict':
         '''
         Returns a 2D `list` of the week patterns in the current academic year.
 
@@ -79,18 +172,9 @@ class Scraper:
         ### Parameters:
         - `list_or_dict` (optional) --> either `'dict'` or `'list'` depending on whether you want the return value to be of type `dict` or `list`.
         - `_print` (optional) --> `True` if you want the output to be printed, `False` if not. The output is printed using the `pprint.PrettyPrinter` class' `pprint` method.
-
-        ---
-
-        ### Notes:
-
-        Unfortunately, `bs4.BeautifulSoup` isn't able to scrape https://timetable.dur.ac.uk/week_patterns.htm because the `<table>` has a `<script>` tag in it which generates the term dates.
-        Therefore I wrote some JavaScript code in `../js-console-scripts/getWeekPatterns.js` which pulls the data.
-        At some point I will investigate how to scrape this with JavaScript.
         '''
-
-        with open("./json-files/weekPatternsArray.json") as f:
-            week_patterns = json.load(f)
+        
+        week_patterns = self.scrape_raw_week_pattern_data()
 
         year_span = week_patterns[-1]
         del week_patterns[-1]
@@ -791,20 +875,7 @@ class Scraper:
     
     # ----------
 
-    def get_week_patterns_2(self):
-        ''' Uses Selenium to emulate a browser in order to scrape the week patterns page. '''
-
-        url = Scraper.add_auth_to_url("https://timetable.dur.ac.uk/week_patterns.htm", self.username, self.password)
-
-        # driver = webdriver.Chrome()
-
-        # print(driver)
-
-        # # driver.get("")
-
-        # driver.close()
-
-        # return
+    
 
 if __name__ == "__main__":
     load_environment_variables()
@@ -812,4 +883,11 @@ if __name__ == "__main__":
         os.environ.get("APP_SCRAPER_USERNAME"),
         os.environ.get("APP_SCRAPER_PASSWORD")
     )
-    scraper.get_week_patterns_2()
+    
+    pp.pprint(
+        scraper.get_week_patterns()
+    )
+
+# ----------------------------------- #
+# --- Getting The Day Of The Week --- #
+# ----------------------------------- #

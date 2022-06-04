@@ -3,7 +3,7 @@ import os
 def load_environment_variables() -> None:
     ''' Loads the environment variables from `.env` and adds then to python's `os.environ`. '''
 
-    with open(".env", "r") as f:
+    with open("../../.env", "r") as f:
         
         for line in f.readlines():
 
