@@ -1,14 +1,14 @@
-
-# from numpy import array
-# from calendar import week
-from regex import R # what? 
 import datetime
 import json
 import sys
+import os
 import requests
-# from difflib import SequenceMatcher
-from bs4 import BeautifulSoup, Comment
+import pprint
 from pprint import PrettyPrinter
+from env import load_environment_variables
+
+from bs4 import BeautifulSoup, Comment
+from selenium import webdriver
 
 pp = PrettyPrinter(indent=4)
 
@@ -173,7 +173,7 @@ class Scraper:
                 pp.pprint(week_patterns_dict)
 
             return week_patterns_dict
-       
+
     # ----------
 
     @staticmethod
@@ -788,6 +788,28 @@ class Scraper:
         
         else:
             return codes_and_urls
+    
+    # ----------
 
-# Scraper.get_week_patterns(_print=True)
-# Scraper.get_datetime_date_from_week_number_and_dotw("9", "Tuesday")
+    def get_week_patterns_2(self):
+        ''' Uses Selenium to emulate a browser in order to scrape the week patterns page. '''
+
+        url = Scraper.add_auth_to_url("https://timetable.dur.ac.uk/week_patterns.htm", self.username, self.password)
+
+        # driver = webdriver.Chrome()
+
+        # print(driver)
+
+        # # driver.get("")
+
+        # driver.close()
+
+        # return
+
+if __name__ == "__main__":
+    load_environment_variables()
+    scraper = Scraper(
+        os.environ.get("APP_SCRAPER_USERNAME"),
+        os.environ.get("APP_SCRAPER_PASSWORD")
+    )
+    scraper.get_week_patterns_2()

@@ -1,5 +1,4 @@
 import os
-import json
 
 def load_environment_variables() -> None:
     ''' Loads the environment variables from `.env` and adds then to python's `os.environ`. '''
