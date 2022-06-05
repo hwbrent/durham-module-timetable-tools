@@ -16,8 +16,10 @@ pp = PrettyPrinter(indent=4)
 CHROMEDRIVER_PATH = "./chromedriver"
 ENV_PATH = "../../.env"
 
+_DEBUG = False
+
 class Scraper:
-    ''' Implements methods that allow for the web-scraping of data from various Durham University websites. '''
+    ''' Implements methods that allow for the web-scraping of data from various Durham University webpages. '''
 
     def __init__(self, username:str, password:str) -> None:
         '''
@@ -73,6 +75,38 @@ class Scraper:
 
     # ----------
 
+    def get_datetime_date_from_week_number_and_dotw(self, week_patterns:dict, week_number:str, day_of_the_week:str) -> 'datetime.date':
+        '''
+        Given a `week_number` and `day_of_the_week`, returns a `datetime.date` object.
+
+        ---
+
+        ### Parameters:
+        - `week_number` (required) --> a valid week number (a number somewhere in the range 1-52, in string form).
+        - `day_of_the_week` (required) --> one of `['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']`
+
+        ---
+
+        ### Notes
+        - `Scraper.get_week_patterns()[<<week_number>>]["Calendar Date"][0]` gets you the `datetime.date` of the Monday of `week_number`.
+        - `day_of_the_week` dictates how many days you need to add onto the Monday date to get the specific day of the week.
+        - e.g. If `day_of_the_week` is `"Wednesday"`, you add a `datetime.timedelta(days=2)` to the Monday date to get the Wednesday date.
+
+        '''
+
+        DAYS_OF_THE_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+        # week_patterns = self.get_week_patterns()
+
+        week_monday_date = week_patterns[week_number]["Calendar Date"][0]
+        number_of_added_days = DAYS_OF_THE_WEEK.index(day_of_the_week)
+
+        new_date = week_monday_date + datetime.timedelta(days = number_of_added_days)
+        
+        return new_date
+
+    # ----------
+
     def scrape_raw_week_pattern_data(self) -> list[list[str]]:
         '''
         Helper function for `self.get_week_patterns`. Returns a 2D list.
@@ -98,6 +132,8 @@ class Scraper:
         # a class containing class variable constants used in the `find_element` method
         from selenium.webdriver.common.by import By
 
+        if _DEBUG: print("Scraping week pattern data from https://timetable.dur.ac.uk/week_patterns.htm")
+
         # ----------
 
         # not really sure what this Service thingy does, but apparently it's necessary.
@@ -115,6 +151,8 @@ class Scraper:
 
         url = Scraper.add_auth_to_url("https://timetable.dur.ac.uk/week_patterns.htm", self.username, self.password)
         driver.get(url)
+
+        # if _DEBUG: print("Fetched 'https://timetable.dur.ac.uk/week_patterns.htm'")
 
         table = driver.find_element(by=By.TAG_NAME,value="table")
 
@@ -173,7 +211,7 @@ class Scraper:
         - `list_or_dict` (optional) --> either `'dict'` or `'list'` depending on whether you want the return value to be of type `dict` or `list`.
         - `_print` (optional) --> `True` if you want the output to be printed, `False` if not. The output is printed using the `pprint.PrettyPrinter` class' `pprint` method.
         '''
-        
+
         week_patterns = self.scrape_raw_week_pattern_data()
 
         year_span = week_patterns[-1]
@@ -260,39 +298,6 @@ class Scraper:
 
     # ----------
 
-    @staticmethod
-    def get_datetime_date_from_week_number_and_dotw(week_number:str, day_of_the_week:str) -> 'datetime.date':
-        '''
-        Given a `week_number` and `day_of_the_week`, returns a `datetime.date` object.
-
-        ---
-
-        ### Parameters:
-        - `week_number` (required) --> a valid week number (a number somewhere in the range 1-52, in string form).
-        - `day_of_the_week` (required) --> one of `['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']`
-
-        ---
-
-        ### Notes
-        - `Scraper.get_week_patterns()[<<week_number>>]["Calendar Date"][0]` gets you the `datetime.date` of the Monday of `week_number`.
-        - `day_of_the_week` dictates how many days you need to add onto the Monday date to get the specific day of the week.
-        - e.g. If `day_of_the_week` is `"Wednesday"`, you add a `datetime.timedelta(days=2)` to the Monday date to get the Wednesday date.
-
-        '''
-
-        DAYS_OF_THE_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-        week_patterns = Scraper.get_week_patterns()
-
-        week_monday_date = week_patterns[week_number]["Calendar Date"][0]
-        number_of_added_days = DAYS_OF_THE_WEEK.index(day_of_the_week)
-
-        new_date = week_monday_date + datetime.timedelta(days = number_of_added_days)
-        
-        return new_date
-
-    # ----------
-
     def handle_request(self, base_url:str) -> str:
         '''
         Handles the request to the url at `self.BASE_URLS[url_index]`.
@@ -305,8 +310,7 @@ class Scraper:
 
         # adding the username and password into base_url.
         # this won't circumnavigate 2FA but does permit access to certain uni sites that only require your CIS username and password
-        # e.g. "https:// + abdc12 + : + 1Abcd* + @ + timetable.dur.ac.uk"
-        # url_with_auth = base_url[:8] + self.username + ":" + self.password + "@" + base_url[8:]
+        # e.g. "https:// + abdc12 + : + 1Abcd* + @ + timetable.dur.ac.uk" 
         url_with_auth = Scraper.add_auth_to_url(base_url, self.username, self.password)
 
         try:
@@ -314,7 +318,6 @@ class Scraper:
 
             # if the response status code is 400 or above
             if not response.ok:
-                # print(response.text)
                 print("Error in connecting to server.")
                 print("Response status code:", response.status_code)
                 print("Reason:", response.reason)
@@ -453,6 +456,10 @@ class Scraper:
         example url = https://timetable.dur.ac.uk/reporting/Master;module;name;COMP2261%0D%0ACOMP2271%0D%0ACOMP2281%0D%0ACOMP3012%0D%0A?days=1-5&weeks=12-21&periods=5-41&template=module+Master&height=100&week=100
         '''
 
+        week_patterns = self.get_week_patterns()
+
+        if _DEBUG: print("Called Scraper.get_module_timetable")
+
         WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
         # -------------------------------------
@@ -481,6 +488,8 @@ class Scraper:
         ])
         response_text = self.handle_request(url)
         soup = BeautifulSoup(response_text, "html.parser")
+
+        print("Hi")
 
         # the formatting is weird - loads of <table>'s are used.
 
@@ -587,11 +596,13 @@ class Scraper:
                         all_week_numbers = [str(num) for num in range(int(lower), int(upper)+1)]
 
                         for week in all_week_numbers:
-                            week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(week, day_of_the_week)
+                            # week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(week, day_of_the_week)
+                            week_activity_date = self.get_datetime_date_from_week_number_and_dotw(week_patterns, week, day_of_the_week)
                             all_activity_dates.append(week_activity_date.isoformat())
                 
                     else: # it's a singular week
-                        week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(value, day_of_the_week)
+                        # week_activity_date = Scraper.get_datetime_date_from_week_number_and_dotw(value, day_of_the_week)
+                        week_activity_date = self.get_datetime_date_from_week_number_and_dotw(week_patterns, value, day_of_the_week)
                         all_activity_dates.append(week_activity_date.isoformat())
 
                 # !! "Planned Size" is sometimes empty !!
@@ -615,7 +626,8 @@ class Scraper:
                     "Staff":           staff,
                     # "Weeks":           weeks_raw, # weeks
                     "Dates":           all_activity_dates,
-                    "Planned Size":    planned_size
+                    "Planned Size":    planned_size,
+                    # "Room Building Location": self.get_building_locations_urls()
                 }
 
                 activities_list.append(activity_dict)
@@ -792,43 +804,43 @@ class Scraper:
 
         # keys are the names in the facility location page, values are the names in the self.get_building_codes() dict
         mappings = {
-            '32 Old Elvet (Sociology)': None,
-            '38-39 Old Bailey (Classics)': '38-39 North Bailey (Classics)',
-            '43 Old Bailey (History)': '43 North Bailey (History)',
-            '48 Old Elvet':'48 Old Elvet',
-            'Abbey House (Theology)':'Abbey House (Theology)',
-            'Al-Qasimi Building':'Al-Qasimi',
-            'Bill Bryson Library':None,
-            'Biological Sciences':'Biological and Biomedical Sciences',
-            'Burdon House':'Burdon House',
-            'Business School':'Business School',
-            'Caedmon Building':    'Caedmon Building - School of Education',
-            'Calman Learning Centre':    'Calman Learning Centre',
-            'Chemistry':    'Chemistry (inc. Courtyard)',
-            'Computing/Maths':    'Computing and Maths',
-            'Courtyard Building':    'Dawson',
-            'Dawson Building':    'Divinity House (Music)',
-            'Divinity House (Music)': None,
-            'Dunelm House (Student Union)':   'Dunelm House',
-            'E-Sciences':     'E-Science',
-            'Elvet Hill House':    'Elvet Hill House',
-            'Elvet Riverside 2':    'Elvet Riverside 2',
-            'Elvet Riverside1':     'Elvet Riverside 1',
-            'Engineering':    'Engineering',
-            'Greys College - Holgate':    'Grey College Holgate House',
-            'Hild Bede College':    'Hild Bede',
-                'Maths & Computer Science':    'Maths & Computer Science', # ---- this wasn't in self.get_building_codes().values()
-            'Mountjoy Centre':    'Mountjoy Centre',
-            'Mountjoy Centre - Rowan House':    'Rowan House',
-            'Palace Green': None,
-            'Palatine Centre':    'Palatine Centre',
-            'Physics':    'Physics',
-            'Psychology':    'Psychology',
-            'School of Education':    'School of Education',
-            'Science of Education Building': None,
-            'Southend House':    'Southend House',
-            'Teaching and Learning Centre':    'Teaching and Learning Centre',
-            'West Building (Geography)': 'West (Geography)'
+            '32 Old Elvet (Sociology)':       None,
+            '38-39 Old Bailey (Classics)':   '38-39 North Bailey (Classics)',
+            '43 Old Bailey (History)':       '43 North Bailey (History)',
+            '48 Old Elvet':                  '48 Old Elvet',
+            'Abbey House (Theology)':        'Abbey House (Theology)',
+            'Al-Qasimi Building':            'Al-Qasimi',
+            'Bill Bryson Library':            None,
+            'Biological Sciences':           'Biological and Biomedical Sciences',
+            'Burdon House':                  'Burdon House',
+            'Business School':               'Business School',
+            'Caedmon Building':              'Caedmon Building - School of Education',
+            'Calman Learning Centre':        'Calman Learning Centre',
+            'Chemistry':                     'Chemistry (inc. Courtyard)',
+            'Computing/Maths':               'Computing and Maths',
+            'Courtyard Building':            'Dawson',
+            'Dawson Building':               'Divinity House (Music)',
+            'Divinity House (Music)':         None,
+            'Dunelm House (Student Union)':  'Dunelm House',
+            'E-Sciences':                    'E-Science',
+            'Elvet Hill House':              'Elvet Hill House',
+            'Elvet Riverside 2':             'Elvet Riverside 2',
+            'Elvet Riverside1':              'Elvet Riverside 1',
+            'Engineering':                   'Engineering',
+            'Greys College - Holgate':       'Grey College Holgate House',
+            'Hild Bede College':             'Hild Bede',
+                'Maths & Computer Science':  'Maths & Computer Science', # ---- this wasn't in self.get_building_codes().values()
+            'Mountjoy Centre':               'Mountjoy Centre',
+            'Mountjoy Centre - Rowan House': 'Rowan House',
+            'Palace Green':                   None,
+            'Palatine Centre':               'Palatine Centre',
+            'Physics':                       'Physics',
+            'Psychology':                    'Psychology',
+            'School of Education':           'School of Education',
+            'Science of Education Building':  None,
+            'Southend House':                'Southend House',
+            'Teaching and Learning Centre':  'Teaching and Learning Centre',
+            'West Building (Geography)':     'West (Geography)'
         }
 
         all_urls = dict()
@@ -885,7 +897,7 @@ if __name__ == "__main__":
     )
     
     pp.pprint(
-        scraper.get_week_patterns()
+        scraper.get_module_timetable(["COMP2281"])
     )
 
 # ----------------------------------- #

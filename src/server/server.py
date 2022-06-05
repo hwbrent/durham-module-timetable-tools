@@ -51,7 +51,7 @@ def server():
 
     # ------------------------------
 
-    @app.route("/get-module-names")
+    @app.route("/get-module-names", methods=["GET"])
     def get_module_names() -> list:
 
         all_params = scraper.get_module_timetable_url_parameters()
@@ -62,13 +62,23 @@ def server():
 
     # ------------------------------
 
-    @app.route("/get-module-timetables", methods=["POST"])
+    @app.route("/get-module-timetables", methods=["GET", "POST"])
     def get_module_timetables() -> list:
 
         # list of module codes
         body_data = flask.request.get_json()
 
-        timetables = scraper.get_module_timetable(body_data)
+        modules = [
+            "COMP2261",
+            "COMP2271",
+            "COMP2211",
+            "COMP2221",
+            "COMP2281",
+            "COMP2181"
+        ]
+
+        # timetables = scraper.get_module_timetable(body_data)
+        timetables = scraper.get_module_timetable(modules)
         
         data = timetables
         return flask.jsonify(data)
