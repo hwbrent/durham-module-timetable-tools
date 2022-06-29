@@ -57,8 +57,7 @@ def server():
         all_params = scraper.get_module_timetable_url_parameters()
         module_names = [sublist[0] for sublist in all_params["Select Module(s) to View:"]]
         
-        data = module_names
-        return flask.jsonify(data)
+        return flask.jsonify(module_names)
 
     # ------------------------------
 
@@ -68,20 +67,9 @@ def server():
         # list of module codes
         body_data = flask.request.get_json()
 
-        modules = [
-            "COMP2261",
-            "COMP2271",
-            "COMP2211",
-            "COMP2221",
-            "COMP2281",
-            "COMP2181"
-        ]
-
-        # timetables = scraper.get_module_timetable(body_data)
-        timetables = scraper.get_module_timetable(modules)
+        timetables = scraper.get_module_timetable(body_data)
         
-        data = timetables
-        return flask.jsonify(data)
+        return flask.jsonify(timetables)
 
     # ------------------------------
 
